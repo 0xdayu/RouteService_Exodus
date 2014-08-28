@@ -10,6 +10,8 @@ from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
  
 import socket
+from netaddr import *
+import pprint
 
 class RouteServiceHandler:
     def __init__(self):
@@ -28,10 +30,11 @@ class RouteServiceHandler:
         (src, dst) -> list(hops)
         '''
         self.routePath = {}
+        self.routeTable = []
         self.log = {}
 
     def notifyMe(self, notify):
-        print "Link State Notification Received!"
+        print "Notification Received!"
         print notify
         '''
         Update LinkState Table
@@ -78,18 +81,89 @@ class RouteServiceHandler:
             
             self.switchList[swid][ptid] = (prefix, mask) 
     
+        '''
+        # Test Use
         print "************************"
         self.printLinkState()
         print "---------------------"
         self.printSwitchConfig()
+        '''
 
-    def doQuery(self, r):
+    def doQuery(self, req):
         self.initMatrix()
         self.floyd_warshall()
         self.generateAllPath()
-        print "++++++++++++++++"
-        self.printAllPath()
-        return QueryReply()
+        self.generateRouteTable()
+
+        if len(req.arguments) != 4:
+            reply = QueryReply()
+            reply.result = None
+            reply.exception_code = "1"
+            reply.exception_message = "Not Enough Arguments"
+            return reply
+
+        token = req.arguments
+        
+        req_swid = token[0]
+        req_addr = token[1]
+        req_mask = token[2]
+        req_outport = token[3]
+
+        reply = QueryReply()
+        
+        rt_result = filter(lambda (a,b,c,d): \
+                    (isVal(req_swid) or a == req_swid) and \
+                    (isVal(req_addr) or b == req_addr) and \
+                    (isVal(req_mask) or c == req_mask) and \
+                    (isVal(req_outport) or d == req_outport),
+                    self.routeTable)
+    
+        result = []
+
+        for a,b,c,d in rt_result:
+            temp = [a,b,c,d]
+            result.append(temp)
+
+        reply.result = result
+        
+        return reply
+
+    
+    def generateRouteTable(self):
+        result = {}
+        for i in self.switchList.keys():
+            for j in self.switchList.keys():
+                if i == j:
+                    #Add route to directly connect
+                    #all ports
+                    for port, subnet in self.switchList[i].iteritems():
+                        prefix, mask = subnet
+                        ip = IPNetwork(prefix + '/' + mask)
+                        if (i, str(ip.network), mask) not in result.keys():
+                            result[(i, str(ip.network), mask)] = port
+                        #result.add((i, str(ip.network), mask, port))
+                else:
+                    for port, subnet in self.switchList[j].iteritems():
+                        #If j directly connect with i, ignore the attached port, because it has already added into the table
+                        if (i,j) in self.linkState.keys():
+                            srcpt, dstpt, cost = self.linkState[(i,j)]
+                            if dstpt == port:
+                                continue
+                        prefix, mask = subnet
+                        ip = IPNetwork(prefix + '/' + mask)
+                        nexthop = self.nexthop[i][j][0]
+                        srcpt, dstpt, cost = self.linkState[(i,nexthop)]
+                        if (i, str(ip.network), mask) not in result.keys():
+                            result[(i, str(ip.network), mask)] = srcpt
+
+                        #result.add((i, str(ip.network), mask, srcpt))
+
+        for key, value in result.iteritems():
+            a,b,c = key
+            self.routeTable.append((a, b, c, value))
+
+             
+        #self.routeTable = list(result)
         
     
     def initMatrix(self):
@@ -133,6 +207,9 @@ class RouteServiceHandler:
     def generateAllPath(self):
         for i in self.switchList.keys():
             for j in self.switchList.keys():
+                #Ignore all path from i to i
+                if i == j:
+                    continue
                 self.routePath[i,j] = self.path(i,j)
 
     def printLinkState(self):
@@ -144,6 +221,14 @@ class RouteServiceHandler:
     def printAllPath(self):
         for key, item in self.routePath.iteritems():
             print "%s : %s" % key, item
+
+    def printRouteTable(self):
+        for i in self.routeTable:
+            print i
+
+def isVal(a):
+    b = a.replace(".","")
+    return not b.isdigit() 
 
 handler = RouteServiceHandler()
 processor = RouteService.Processor(handler)

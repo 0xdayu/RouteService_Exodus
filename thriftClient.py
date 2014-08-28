@@ -52,7 +52,10 @@ try:
     f.close()
     
     q = Query()
-    client.doQuery(q)
+    q.arguments = ["5","c","c","c"]
+    result = client.doQuery(q)
+
+    print result
 
 except Thrift.TException, ex:
   print "%s" % (ex.message)
