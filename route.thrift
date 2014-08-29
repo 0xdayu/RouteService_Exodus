@@ -1,6 +1,7 @@
 struct Query
 {
-    1: required list<string> arguments
+    1: required string relName,
+    2: required list<string> arguments
 }
 
 struct QueryReply

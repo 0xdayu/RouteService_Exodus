@@ -20,15 +20,18 @@ except:
 class Query:
   """
   Attributes:
+   - relName
    - arguments
   """
 
   thrift_spec = (
     None, # 0
-    (1, TType.LIST, 'arguments', (TType.STRING,None), None, ), # 1
+    (1, TType.STRING, 'relName', None, None, ), # 1
+    (2, TType.LIST, 'arguments', (TType.STRING,None), None, ), # 2
   )
 
-  def __init__(self, arguments=None,):
+  def __init__(self, relName=None, arguments=None,):
+    self.relName = relName
     self.arguments = arguments
 
   def read(self, iprot):
@@ -41,6 +44,11 @@ class Query:
       if ftype == TType.STOP:
         break
       if fid == 1:
+        if ftype == TType.STRING:
+          self.relName = iprot.readString();
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
         if ftype == TType.LIST:
           self.arguments = []
           (_etype3, _size0) = iprot.readListBegin()
@@ -60,8 +68,12 @@ class Query:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
     oprot.writeStructBegin('Query')
+    if self.relName is not None:
+      oprot.writeFieldBegin('relName', TType.STRING, 1)
+      oprot.writeString(self.relName)
+      oprot.writeFieldEnd()
     if self.arguments is not None:
-      oprot.writeFieldBegin('arguments', TType.LIST, 1)
+      oprot.writeFieldBegin('arguments', TType.LIST, 2)
       oprot.writeListBegin(TType.STRING, len(self.arguments))
       for iter6 in self.arguments:
         oprot.writeString(iter6)
@@ -71,6 +83,8 @@ class Query:
     oprot.writeStructEnd()
 
   def validate(self):
+    if self.relName is None:
+      raise TProtocol.TProtocolException(message='Required field relName is unset!')
     if self.arguments is None:
       raise TProtocol.TProtocolException(message='Required field arguments is unset!')
     return

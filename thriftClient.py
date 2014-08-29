@@ -26,7 +26,7 @@ try:
         line = line.strip()
         tokens = line.split(",")
         n = Notification()
-        n.notificationType = "LINKSTATE"
+        n.notificationType = "LINKSTATE_UP"
         n.values = {}
         n.values["srcsw"] = tokens[0]
         n.values["srcpt"] = tokens[1]

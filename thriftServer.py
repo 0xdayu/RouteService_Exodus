@@ -39,7 +39,7 @@ class RouteServiceHandler:
         '''
         Update LinkState Table
         '''
-        if notify.notificationType == "LINKSTATE":
+        if notify.notificationType.lower().startswith("linkstate"):
             if len(notify.values) != 5:
                 print "Invalid Notification!"
                 return
@@ -54,18 +54,24 @@ class RouteServiceHandler:
             if srcsw == dstsw:
                 return
 
-            # Two switch connect with two different cables, pick the less cost one
-            if (srcsw, dstsw) in self.linkState.keys():
-                (oldSrcPt, oldDstPt, oldCost) = self.linkState[(srcsw,dstsw)]
-                if oldCost > cost:
-                    self.linkState[(srcsw,dstsw)] = (srcpt, dstpt, cost)
-            else:
-                    self.linkState[(srcsw,dstsw)] = (srcpt, dstpt, cost)
+            if notify.notificationType.lower() == "linkstate_down":
+                if (srcsw, dstsw) in self.linkState.keys():
+                    del self.linkState[(srcsw, dstsw)]
+                return
+
+            elif notify.notificationType.lower() == "linkstate_up":
+                # Two switch connect with two different cables, pick the less cost one
+                if (srcsw, dstsw) in self.linkState.keys():
+                    (oldSrcPt, oldDstPt, oldCost) = self.linkState[(srcsw,dstsw)]
+                    if oldCost > cost:
+                        self.linkState[(srcsw,dstsw)] = (srcpt, dstpt, cost)
+                else:
+                        self.linkState[(srcsw,dstsw)] = (srcpt, dstpt, cost)
  
         '''
         Update switchList
         '''                
-        if notify.notificationType == "SWITCH_CONFIG":
+        if notify.notificationType.lower() == "switch_config":
             if len(notify.values) != 4:
                 print "Invalid Notification!"
                 return
@@ -94,7 +100,11 @@ class RouteServiceHandler:
         self.floyd_warshall()
         self.generateAllPath()
         self.generateRouteTable()
-
+        print "*********"
+        self.printRouteTable()
+        
+        print "Query Request Received!"
+        print req
         if len(req.arguments) != 4:
             reply = QueryReply()
             reply.result = None
@@ -144,14 +154,18 @@ class RouteServiceHandler:
                         #result.add((i, str(ip.network), mask, port))
                 else:
                     for port, subnet in self.switchList[j].iteritems():
+                        '''
                         #If j directly connect with i, ignore the attached port, because it has already added into the table
                         if (i,j) in self.linkState.keys():
                             srcpt, dstpt, cost = self.linkState[(i,j)]
                             if dstpt == port:
                                 continue
+                        '''
                         prefix, mask = subnet
                         ip = IPNetwork(prefix + '/' + mask)
-                        nexthop = self.nexthop[i][j][0]
+                        if len(self.routePath[i,j]) == 0:
+                            continue
+                        nexthop = self.routePath[i,j][0]
                         srcpt, dstpt, cost = self.linkState[(i,nexthop)]
                         if (i, str(ip.network), mask) not in result.keys():
                             result[(i, str(ip.network), mask)] = srcpt
@@ -195,6 +209,7 @@ class RouteServiceHandler:
                     if self.dist[i][k] + self.dist[k][j] < self.dist[i][j]:
                         self.dist[i][j] = self.dist[i][k] + self.dist[k][j]
                         self.nexthop[i][j] = self.nexthop[i][k]
+
     def path(self, src, dst):
         result = []
         if self.nexthop[src][dst] is None:
@@ -232,7 +247,7 @@ def isVal(a):
 
 handler = RouteServiceHandler()
 processor = RouteService.Processor(handler)
-transport = TSocket.TServerSocket("192.168.1.103", port = 9090)
+transport = TSocket.TServerSocket("192.168.1.103", port = 9999)
 tfactory = TTransport.TBufferedTransportFactory()
 pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
