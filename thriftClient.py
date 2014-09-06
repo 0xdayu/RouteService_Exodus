@@ -1,6 +1,6 @@
 import sys
 sys.path.append('./gen-py')
- 
+
 from route import RouteService
 from route.ttypes import *
 
@@ -9,11 +9,11 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
 from thrift import Thrift
- 
+
 import socket
 
 try:
-    transport = TSocket.TSocket('192.168.1.103', 9090)
+    transport = TSocket.TSocket('127.0.0.1', 9999)
     transport = TTransport.TBufferedTransport(transport)
     protocol = TBinaryProtocol.TBinaryProtocol(transport)
     client = RouteService.Client(protocol)
@@ -34,8 +34,8 @@ try:
         n.values["dstpt"] = tokens[3]
         n.values["cost"] = tokens[4]
         client.notifyMe(n)
-    f.close()   
-    
+    f.close()
+
     f = open("switch_config", "r")
 
     for line in f.readlines()[1:]:
@@ -50,7 +50,7 @@ try:
         n.values["mask"] = token[3]
         client.notifyMe(n)
     f.close()
-    
+
     q = Query()
     q.arguments = ["5","c","c","c"]
     result = client.doQuery(q)
