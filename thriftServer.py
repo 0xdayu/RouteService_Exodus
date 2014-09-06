@@ -40,7 +40,10 @@ class RouteServiceHandler:
         Update LinkState Table
         '''
         if notify.notificationType.lower().startswith("linkstate"):
-            if len(notify.values) != 5:
+            if (len(notify.values) != 5 and notify.notificationType.lower() == "linkstate_up"):
+                print "Invalid Notification!"
+                return
+            if (len(notify.values) != 4 and notify.notificationType.lower() == "linkstate_down"):
                 print "Invalid Notification!"
                 return
 
@@ -48,7 +51,10 @@ class RouteServiceHandler:
             dstsw = notify.values['dstsw']
             srcpt = notify.values['srcpt']
             dstpt = notify.values['dstpt']
-            cost = int(notify.values['cost'])
+            if notify.notificationType.lower() == "linkstate_up":
+                cost = int(notify.values['cost'])
+            else:
+                cost = None
 
             # avoid self loop
             if srcsw == dstsw:
