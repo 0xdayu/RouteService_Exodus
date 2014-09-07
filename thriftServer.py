@@ -33,6 +33,9 @@ class RouteServiceHandler:
         self.routeTable = []
         self.log = {}
 
+        # may be static routes in the config that need inclusion in the routing table
+        self.static_routes = []
+
     def notifyMe(self, notify):
         print "Notification Received!"
         print notify
@@ -93,6 +96,19 @@ class RouteServiceHandler:
 
             self.switchList[swid][ptid] = (prefix, mask)
 
+        # This server needs to get routing (L3) port numbers on router, not physical ports on vlan
+        # (if it's a virtual interface, might have to go out multiple physical ports)
+        if notify.notificationType.lower() == "static_route":
+            if len(notify.values) != 4:
+                print "Invalid Notification!"
+                return
+            swid = notify.values['swid']
+            outport = notify.values['outport']
+            prefix = notify.values['prefix']
+            mask = notify.values['mask']
+            self.static_routes.append([swid,outport,prefix,mask])
+
+
         '''
         # Test Use
         print "************************"
@@ -140,12 +156,15 @@ class RouteServiceHandler:
             temp = [a,b,c,d]
             result.append(temp)
 
+        result.extend(self.static_routes)
         reply.result = result
 
         return reply
 
 
     def generateRouteTable(self):
+        # clear out the cached route table before regenerating
+        self.routeTable = []
         result = {}
         for i in self.switchList.keys():
             for j in self.switchList.keys():
@@ -177,7 +196,6 @@ class RouteServiceHandler:
                             result[(i, str(ip.network), mask)] = srcpt
 
                         #result.add((i, str(ip.network), mask, srcpt))
-
         for key, value in result.iteritems():
             a,b,c = key
             self.routeTable.append((a, b, c, value))
