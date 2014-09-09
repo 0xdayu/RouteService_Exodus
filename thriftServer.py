@@ -106,7 +106,7 @@ class RouteServiceHandler:
             outport = notify.values['outport']
             prefix = notify.values['prefix']
             mask = notify.values['mask']
-            self.static_routes.append([swid,outport,prefix,mask])
+            self.static_routes.append([swid,prefix,mask,outport])
 
 
         '''
@@ -159,6 +159,7 @@ class RouteServiceHandler:
         result.extend(self.static_routes)
         reply.result = result
 
+        #print "returning:",reply.result
         return reply
 
 
@@ -263,6 +264,8 @@ class RouteServiceHandler:
 
     def printRouteTable(self):
         for i in self.routeTable:
+            print i
+        for i in self.static_routes:
             print i
 
 def isVal(a):
